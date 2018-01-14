@@ -4,19 +4,21 @@
 // @description     Auto Pager for forum
 
 // Discuz
-// @include         http://*/viewthread.php?*
-// @include         http://*/thread-*-*-*.html
+// @include         https://*/viewthread.php?*
+// @include         https://*/thread-*-*-*.html
 
 // vBulletin
-// @include         http://*/showthread.php?*
-// @include         http://*/thread/*
-// @include         http://*/thread*-*.html
+// @include         https://*/showthread.php?*
+// @include         https://*/thread/*
+// @include         https://*/thread*-*.html
 
 // IP Board
-// @include         http://*/index.php?*
+// @include         https://*/index.php?*
 
 // general rule
-// @include         http://*forum*
+// @include         https://*forum*
+
+// @grant           GM_xmlhttpRequest
 
 // @version     0.6.6
 // ==/UserScript==
@@ -32,18 +34,18 @@
     if (!Array.prototype.forEach) {
 	Array.prototype.forEach = function(func, scope){
 	    scope = scope || this;
-	    for (var i = 0, l = this.length; i < l; i++) 
+	    for (var i = 0, l = this.length; i < l; i++)
 		func.call(scope, this[i], i, this);
-	}
+	};
     }
-    
+
     Function.prototype.bind = function(){
 	var __method = this, args = Array.prototype.slice.call(arguments, 0), object = args.shift();
 	return function(){
 	    return __method.apply(object, args.concat(Array.prototype.slice.call(arguments, 0)));
-	}
-    }
-    
+	};
+    };
+
 })();
 
 (function(){
@@ -62,7 +64,7 @@
 		    }
 		};
 	    }
-	    else if (document.compatMode == "BackCompat" || document.compatMode == "" || document.compatMode == null) {
+	    else if (document.compatMode == "BackCompat" || document.compatMode === "" || document.compatMode === null) {
 		return {
 		    valueOf: function(){
 			var sc = document.body.scrollTop;
@@ -73,7 +75,7 @@
 		};
 	    }
 	}();
-	
+
 	var monitorScroll = function(){
 	    var self = arguments.callee;
 	    var remain_tmp = Remain.valueOf();
@@ -83,7 +85,7 @@
 	    }
 	    setTimeout(self, 150);
 	};
-	
+
 	return {
 	    init: function(inPlugin){
 		plugin = inPlugin;
@@ -92,9 +94,9 @@
 	    }
 	};
     }();
-    
+
     window.AutoPager = AutoPager;
-    
+
     var AutoPagerComponent = function(){
 	function init_protected(protected){
 	    protected.insertPoint = null;
@@ -131,13 +133,13 @@
 		    $this.state = 'hided';
 		},
 		setText: function(input){
-		    if (!$this.action) 
+		    if (!$this.action)
 			alert('setText');
 		    $this.text.nodeValue = input;
 		    return $this;
 		},
 		show: function(){
-		    if (!$this.action) 
+		    if (!$this.action)
 			alert('show');
 		    if ($this.action != 'showing' && $this.state != 'showed') {
 			$this.action = 'showing';
@@ -148,7 +150,7 @@
 		    return $this;
 		},
 		hide: function(){
-		    if (!$this.action) 
+		    if (!$this.action)
 			alert('hide');
 		    if ($this.action != 'hiding' && $this.state != 'hided' && $this.state != 'wantToHide') {
 			$this.state = 'wantToHide';
@@ -163,7 +165,7 @@
 		    if ($this.action == 'hiding') {
 			if (value <= -200) {
 			    $this.action = 'idle';
-			    if ($this.state == 'hiding') 
+			    if ($this.state == 'hiding')
 				$this.state = 'hided';
 			}
 			else {
@@ -174,7 +176,7 @@
 		    else if ($this.action == 'showing') {
 			if (value >= 0) {
 			    $this.action = 'idle';
-			    if ($this.state == 'showing') 
+			    if ($this.state == 'showing')
 				$this.state = 'showed';
 			}
 			else {
@@ -279,7 +281,7 @@
 			    //obj = (new DOMParser()).parseFromString(data, "text/xml");
 			    
 			    protected.nextPage++;
-			    $this.ProcessResultData(data, obj);
+			    $this.ProcessResultData(data, obj, {window:win, url:url});
 			    win.document.write = oldFunction;
 			    win.document.writeln = oldFunction2;
 			    obj.innerHTML = null;
@@ -596,15 +598,19 @@
 		return;
 	    }
 	};
-	that.ProcessResultData = function(data, obj){
+	that.ProcessResultData = function(data, obj, options){
 	    var docFragment = document.createDocumentFragment();
-	    var xpath = document.evaluate(".//div//div[@id='above_postlist']", obj, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+	    var xpath = document.evaluate(".//head//title", obj, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+	    var title = xpath.snapshotItem(0).cloneNode(true).textContent;
+            xpath = document.evaluate(".//div//div[@id='above_postlist']", obj, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 	    var header = xpath.snapshotItem(0).cloneNode(true);
 	    header.removeAttribute('id');
 	    docFragment.appendChild(header);
 	    xpath = document.evaluate(".//div//div[@id='postlist']", obj, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 	    var content = xpath.snapshotItem(0).cloneNode(true);
 	    content.removeAttribute('id');
+            content.setAttribute('url',options.url);
+            content.setAttribute('title',title);
 	    docFragment.appendChild(content);
 	    xpath = document.evaluate(".//div//div[@id='below_postlist']", obj, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 	    var footer = xpath.snapshotItem(0).cloneNode(true);
@@ -613,6 +619,23 @@
 	    var xpath2 = document.evaluate("./ancestor::table", xpath.snapshotItem(0), null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
 	    protected.insertPoint.parentNode.insertBefore(docFragment, protected.insertPoint);
+
+            var list=document.getElementsByClassName('postlist');
+            if(list.length>1){
+                if(list[0].clientHeight<document.documentElement.scrollTop-document.documentElement.clientHeight){
+                    list[0].parentNode.removeChild(list[0]);
+                    var els=document.getElementsByClassName('above_postlist');
+                    if(els.length>1)
+                        els[0].parentNode.removeChild(els[0]);
+                    var els=document.getElementsByClassName('below_postlist');
+                    if(els.length>1)
+                        els[0].parentNode.removeChild(els[0]);
+                }
+                console.log(title);
+                document.title=list[0].getAttribute('title');
+                options.window.history.pushState({}, list[0].getAttribute('title'), list[0].getAttribute('url'));
+            }
+
 	    docFragment = null;
 	    protected.url = protected.url.replace(/&page=\d+/, '&page=' + protected.nextPage);
 	};
